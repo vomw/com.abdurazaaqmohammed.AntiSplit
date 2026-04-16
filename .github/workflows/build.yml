@@ -32,6 +32,8 @@ jobs:
           echo "Error: Decoded keystore is empty"
           exit 1
         fi
+      env:
+        KEYSTORE: ${{ secrets.KEYSTORE }}
 
     - name: Get Version and Package ID
       id: get_info
