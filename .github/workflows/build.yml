@@ -25,9 +25,13 @@ jobs:
       run: chmod +x gradlew
 
     - name: Decode Keystore
-      if: github.event_name != 'pull_request'
+      if: github.event_name != 'pull_request' && secrets.KEYSTORE != ''
       run: |
-        echo "${{ secrets.KEYSTORE }}" | base64 --decode > release.keystore
+        echo "${{ secrets.KEYSTORE }}" | base64 -d > release.keystore
+        if [ ! -s release.keystore ]; then
+          echo "Error: Decoded keystore is empty"
+          exit 1
+        fi
 
     - name: Get Version and Package ID
       id: get_info
@@ -39,7 +43,7 @@ jobs:
         echo "filename=${PACKAGE_ID}-v${VERSION}.apk" >> $GITHUB_OUTPUT
 
     - name: Build Release APK
-      if: github.event_name != 'pull_request'
+      if: github.event_name != 'pull_request' && secrets.KEYSTORE != ''
       run: ./gradlew assembleRelease
       env:
         KEYSTORE_PATH: ../release.keystore
@@ -48,22 +52,22 @@ jobs:
         KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
     - name: Rename APK
-      if: github.event_name != 'pull_request'
+      if: github.event_name != 'pull_request' && secrets.KEYSTORE != ''
       run: mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/${{ steps.get_info.outputs.filename }}
 
     - name: Build Debug APK
-      if: github.event_name == 'pull_request'
+      if: github.event_name == 'pull_request' || secrets.KEYSTORE == ''
       run: ./gradlew assembleDebug
 
     - name: Upload Release Artifact
-      if: github.event_name != 'pull_request'
+      if: github.event_name != 'pull_request' && secrets.KEYSTORE != ''
       uses: actions/upload-artifact@v4
       with:
         name: ${{ steps.get_info.outputs.filename }}
         path: app/build/outputs/apk/release/${{ steps.get_info.outputs.filename }}
 
     - name: Upload Debug Artifact
-      if: github.event_name == 'pull_request'
+      if: github.event_name == 'pull_request' || (github.event_name != 'pull_request' && secrets.KEYSTORE == '')
       uses: actions/upload-artifact@v4
       with:
         name: debug-apk
